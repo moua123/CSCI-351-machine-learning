@@ -222,8 +222,8 @@ main(int argc, char * argv[])
   for (size_t i = 0; i < k; i++) {
     sum += rating[distance2[i].viewer_id * m + 4];
   }
-
-  /* Output prediction. */
+  //testing
+  /* prediction. */
   printf("The predicted rating for movie five is %.1lf.\n", sum / k);
   }
 /* ---------------------------------------------------------------------------------------------- */
