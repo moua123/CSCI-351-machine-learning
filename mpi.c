@@ -165,25 +165,31 @@ main(int argc, char * argv[])
 
 /* ---------------------------------------Adjust this code-------------------------------------- */
   /* Allocate more memory. */
-  struct distance_metric * const distance = calloc(n, sizeof(*distance));
+  double * distance;
+
+  if (rank == 0) {
+    distance = calloc(n, sizeof(*distance));
+  }
+  else {
+    distance = calloc(ln, sizeof(*distance));
+  }
 
   /* Check for success. */
   assert(distance);
 
   /* Compute distances. */
   for (size_t i = 0; i < ln; i++) {
-    distance[i].viewer_id = i;
     for (size_t j = 0; j < m - 1; j++) {
-      distance[i].distance += fabs(urating[j] - rating[i * m + j]);
+      distance[i] += fabs(urating[j] - rating[i * m + j]);
     }
   } 
 
   /* Sends the computation to rank 0 */
   if (rank == 0) {
     for (int r = 1; r < p; r++) {
-      ret = MPI_Recv(distance, ln, MPI_DOUBLE, r, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      size_t const rn = (r + 1) * base > n ? n - r * base : base;
+      ret = MPI_Recv(distance + r * base, rn, MPI_DOUBLE, r, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       assert(MPI_SUCCESS == ret);
-
     }
   }    
     else{
@@ -191,21 +197,23 @@ main(int argc, char * argv[])
       assert(MPI_SUCCESS == ret);
     }
 
-
   /* Sort distances. */
   if (rank == 0){
-
+   
   struct distance_metric * distance2 = malloc(n*sizeof(*distance2));
+  assert(distance2);
 
   for (size_t i = 0; i < n; i++){
     distance2[i].viewer_id = i;
     distance2[i].distance = distance[i];
   
   }
-  qsort(distance, n, sizeof(*distance), cmp);
+
+  qsort(distance2, ln, sizeof(*distance2), cmp);
 
   /* Get user input. */
   printf("Enter the number of similar viewers to report: \n");
+  fflush(stdout);
   scanf("%zu", &k);
 
   /* Output k viewers who are least different from the user. */
@@ -222,9 +230,11 @@ main(int argc, char * argv[])
   for (size_t i = 0; i < k; i++) {
     sum += rating[distance2[i].viewer_id * m + 4];
   }
-  //testing
-  /* prediction. */
+
+  /* Output prediction. */
   printf("The predicted rating for movie five is %.1lf.\n", sum / k);
+
+  free(distance2);
   }
 /* ---------------------------------------------------------------------------------------------- */
 
